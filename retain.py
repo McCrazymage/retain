@@ -5,7 +5,7 @@
 
 import sys, random
 import numpy as np
-import cPickle as pickle
+import pickle as pickle
 from collections import OrderedDict
 import argparse
 
@@ -21,7 +21,7 @@ _VALIDATION_RATIO = 0.1
 
 def unzip(zipped):
 	new_params = OrderedDict()
-	for key, value in zipped.iteritems():
+	for key, value in zipped.items():
 		new_params[key] = value.get_value()
 	return new_params
 
@@ -46,11 +46,11 @@ def init_params(options):
 	numClass = options['numClass']
 
 	if len(embFile) > 0: 
-		print 'using external code embedding'
+		print('using external code embedding')
 		params['W_emb'] = load_embedding(embFile)
 		embDimSize = params['W_emb'].shape[1]
 	else: 
-		print 'using randomly initialized code embedding'
+		print('using randomly initialized code embedding')
 		params['W_emb'] = get_random_weight(inputDimSize, embDimSize)
 
 	gruInputDimSize = embDimSize
@@ -78,7 +78,7 @@ def load_params(options):
 
 def init_tparams(params, options):
 	tparams = OrderedDict()
-	for key, value in params.iteritems():
+	for key, value in params.items():
 		if not options['embFineTune'] and key == 'W_emb': continue
 		tparams[key] = theano.shared(value, name=key)
 	return tparams
@@ -154,7 +154,7 @@ def build_model(tparams, options, W_emb=None):
 
 	counts = T.arange(n_timesteps)+ 1
 	c_t, updates = theano.scan(fn=attentionStep, sequences=[counts], outputs_info=None, name='attention_layer', n_steps=n_timesteps)
-        if keep_prob_context < 1.0: c_t = dropout_layer(c_t, use_noise, trng, keep_prob_context)
+	if keep_prob_context < 1.0: c_t = dropout_layer(c_t, use_noise, trng, keep_prob_context)
 
 	preY = T.nnet.sigmoid(T.dot(c_t, tparams['w_output']) + tparams['b_output'])
 	preY = preY.reshape((preY.shape[0], preY.shape[1]))
@@ -173,9 +173,9 @@ def build_model(tparams, options, W_emb=None):
 	else: return use_noise, x, y, lengths, cost_noreg, cost, y_hat
 
 def adadelta(tparams, grads, x, y, lengths, cost, options, t=None):
-	zipped_grads = [theano.shared(p.get_value() * numpy_floatX(0.), name='%s_grad' % k) for k, p in tparams.iteritems()]
-	running_up2 = [theano.shared(p.get_value() * numpy_floatX(0.), name='%s_rup2' % k) for k, p in tparams.iteritems()]
-	running_grads2 = [theano.shared(p.get_value() * numpy_floatX(0.), name='%s_rgrad2' % k) for k, p in tparams.iteritems()]
+	zipped_grads = [theano.shared(p.get_value() * numpy_floatX(0.), name='%s_grad' % k) for k, p in tparams.items()]
+	running_up2 = [theano.shared(p.get_value() * numpy_floatX(0.), name='%s_rup2' % k) for k, p in tparams.items()]
+	running_grads2 = [theano.shared(p.get_value() * numpy_floatX(0.), name='%s_rgrad2' % k) for k, p in tparams.items()]
 
 	zgup = [(zg, g) for zg, g in zip(zipped_grads, grads)]
 	rg2up = [(rg2, 0.95 * rg2 + 0.05 * (g ** 2)) for rg2, g in zip(running_grads2, grads)]
@@ -187,7 +187,7 @@ def adadelta(tparams, grads, x, y, lengths, cost, options, t=None):
 
 	updir = [-T.sqrt(ru2 + 1e-6) / T.sqrt(rg2 + 1e-6) * zg for zg, ru2, rg2 in zip(zipped_grads, running_up2, running_grads2)]
 	ru2up = [(ru2, 0.95 * ru2 + 0.05 * (ud ** 2)) for ru2, ud in zip(running_up2, updir)]
-	param_up = [(p, p + ud) for p, ud in zip(tparams.values(), updir)]
+	param_up = [(p, p + ud) for p, ud in zip(list(tparams.values()), updir)]
 
 	f_update = theano.function([], [], updates=ru2up + param_up, on_unused_input='ignore', name='adadelta_f_update')
 
@@ -195,13 +195,13 @@ def adadelta(tparams, grads, x, y, lengths, cost, options, t=None):
 
 def adam(cost, tparams, lr=0.0002, b1=0.1, b2=0.001, e=1e-8):
 	updates = []
-	grads = T.grad(cost, wrt=tparams.values())
+	grads = T.grad(cost, wrt=list(tparams.values()))
 	i = theano.shared(numpy_floatX(0.))
 	i_t = i + 1.
 	fix1 = 1. - (1. - b1)**i_t
 	fix2 = 1. - (1. - b2)**i_t
 	lr_t = lr * (T.sqrt(fix2) / fix1)
-	for p, g in zip(tparams.values(), grads):
+	for p, g in zip(list(tparams.values()), grads):
 		m = theano.shared(p.get_value() * 0.)
 		v = theano.shared(p.get_value() * 0.)
 		m_t = (b1 * g) + ((1. - b1) * m)
@@ -274,7 +274,7 @@ def load_data_simple(seqFile, labelFile, timeFile=''):
 		valid_set_t = times[valid_indices]
 
 	def len_argsort(seq):
-		return sorted(range(len(seq)), key=lambda x: len(seq[x]))
+		return sorted(list(range(len(seq))), key=lambda x: len(seq[x]))
 
 	train_sorted_index = len_argsort(train_set_x)
 	train_set_x = [train_set_x[i] for i in train_sorted_index]
@@ -317,7 +317,7 @@ def load_data(seqFile, labelFile, timeFile):
 		test_set_t = pickle.load(open(timeFile+'.test', 'rb'))
 
 	def len_argsort(seq):
-		return sorted(range(len(seq)), key=lambda x: len(seq[x]))
+		return sorted(list(range(len(seq))), key=lambda x: len(seq[x]))
 
 	train_sorted_index = len_argsort(train_set_x)
 	train_set_x = [train_set_x[i] for i in train_sorted_index]
@@ -348,7 +348,7 @@ def calculate_auc(test_model, dataset, options):
 	
 	n_batches = int(np.ceil(float(len(dataset[0])) / float(batchSize)))
 	scoreVec = []
-	for index in xrange(n_batches):
+	for index in range(n_batches):
 		batchX = dataset[0][index*batchSize:(index+1)*batchSize]
 		if useTime:
 			batchT = dataset[2][index*batchSize:(index+1)*batchSize]
@@ -370,7 +370,7 @@ def calculate_cost(test_model, dataset, options):
 	dataCount = 0
 	
 	n_batches = int(np.ceil(float(len(dataset[0])) / float(batchSize)))
-	for index in xrange(n_batches):
+	for index in range(n_batches):
 		batchX = dataset[0][index*batchSize:(index+1)*batchSize]
 		if useTime:
 			batchT = dataset[2][index*batchSize:(index+1)*batchSize]
@@ -423,17 +423,17 @@ def train_RETAIN(
 	else: useTime = False
 	options['useTime'] = useTime
 	
-	print 'Initializing the parameters ... ',
+	print('Initializing the parameters ... ', end=' ')
 	params = init_params(options)
 	if len(modelFile) > 0: params = load_params(options)
 	tparams = init_tparams(params, options)
 
-	print 'Building the model ... ',
+	print('Building the model ... ', end=' ')
 	if useTime and embFineTune:
-		print 'using time information, fine-tuning code representations'
+		print('using time information, fine-tuning code representations')
 		use_noise, x, y, t, lengths, cost_noreg, cost, y_hat =  build_model(tparams, options)
 		if solver=='adadelta':
-			grads = T.grad(cost, wrt=tparams.values())
+			grads = T.grad(cost, wrt=list(tparams.values()))
 			f_grad_shared, f_update = adadelta(tparams, grads, x, y, lengths, cost, options, t)
 		elif solver=='adam':
 			updates = adam(cost, tparams)
@@ -441,11 +441,11 @@ def train_RETAIN(
 		get_prediction = theano.function(inputs=[x, t, lengths], outputs=y_hat, name='get_prediction')
 		get_cost = theano.function(inputs=[x, y, t, lengths], outputs=cost_noreg, name='get_cost')
 	elif useTime and not embFineTune:
-		print 'using time information, not fine-tuning code representations'
+		print('using time information, not fine-tuning code representations')
 		W_emb = theano.shared(params['W_emb'], name='W_emb')
 		use_noise, x, y, t, lengths, cost_noreg, cost, y_hat =  build_model(tparams, options, W_emb)
 		if solver=='adadelta':
-			grads = T.grad(cost, wrt=tparams.values())
+			grads = T.grad(cost, wrt=list(tparams.values()))
 			f_grad_shared, f_update = adadelta(tparams, grads, x, y, lengths, cost, options, t)
 		elif solver=='adam':
 			updates = adam(cost, tparams)
@@ -453,10 +453,10 @@ def train_RETAIN(
 		get_prediction = theano.function(inputs=[x, t, lengths], outputs=y_hat, name='get_prediction')
 		get_cost = theano.function(inputs=[x, y, t, lengths], outputs=cost_noreg, name='get_cost')
 	elif not useTime and embFineTune:
-		print 'not using time information, fine-tuning code representations'
+		print('not using time information, fine-tuning code representations')
 		use_noise, x, y, lengths, cost_noreg, cost, y_hat =  build_model(tparams, options)
 		if solver=='adadelta':
-			grads = T.grad(cost, wrt=tparams.values())
+			grads = T.grad(cost, wrt=list(tparams.values()))
 			f_grad_shared, f_update = adadelta(tparams, grads, x, y, lengths, cost, options)
 		elif solver=='adam':
 			updates = adam(cost, tparams)
@@ -464,11 +464,11 @@ def train_RETAIN(
 		get_prediction = theano.function(inputs=[x, lengths], outputs=y_hat, name='get_prediction')
 		get_cost = theano.function(inputs=[x, y, lengths], outputs=cost_noreg, name='get_cost')
 	elif not useTime and not embFineTune:
-		print 'not using time information, not fine-tuning code representations'
+		print('not using time information, not fine-tuning code representations')
 		W_emb = theano.shared(params['W_emb'], name='W_emb')
 		use_noise, x, y, lengths, cost_noreg, cost, y_hat =  build_model(tparams, options, W_emb)
 		if solver=='adadelta':
-			grads = T.grad(cost, wrt=tparams.values())
+			grads = T.grad(cost, wrt=list(tparams.values()))
 			f_grad_shared, f_update = adadelta(tparams, grads, x, y, lengths, cost, options)
 		elif solver=='adam':
 			updates = adam(cost, tparams)
@@ -476,23 +476,23 @@ def train_RETAIN(
 		get_prediction = theano.function(inputs=[x, lengths], outputs=y_hat, name='get_prediction')
 		get_cost = theano.function(inputs=[x, y, lengths], outputs=cost_noreg, name='get_cost')
 
-	print 'Loading data ... ',
+	print('Loading data ... ', end=' ')
 	if simpleLoad:
 		trainSet, validSet, testSet = load_data_simple(seqFile, labelFile, timeFile)
 	else:
 		trainSet, validSet, testSet = load_data(seqFile, labelFile, timeFile)
 	n_batches = int(np.ceil(float(len(trainSet[0])) / float(batchSize)))
-	print 'done'
+	print('done')
 
 	bestValidAuc = 0.0
 	bestTestAuc = 0.0
 	bestValidEpoch = 0
 	logFile = outFile + '.log'
-	print 'Optimization start !!'
-	for epoch in xrange(max_epochs):
+	print('Optimization start !!')
+	for epoch in range(max_epochs):
 		iteration = 0
 		costVector = []
-		for index in random.sample(range(n_batches), n_batches):
+		for index in random.sample(list(range(n_batches)), n_batches):
 			use_noise.set_value(1.)
 			batchX = trainSet[0][index*batchSize:(index+1)*batchSize]
 			y = np.array(trainSet[1][index*batchSize:(index+1)*batchSize]).astype(config.floatX)
@@ -514,26 +514,26 @@ def train_RETAIN(
 					costValue = update_model(x, y, lengths)
 			costVector.append(costValue)
 			if (iteration % 10 == 0) and verbose: 
-				print 'Epoch:%d, Iteration:%d/%d, Train_Cost:%f' % (epoch, iteration, n_batches, costValue)
+				print('Epoch:%d, Iteration:%d/%d, Train_Cost:%f' % (epoch, iteration, n_batches, costValue))
 			iteration += 1
 
 		use_noise.set_value(0.)
 		trainCost = np.mean(costVector)
 		validAuc = calculate_auc(get_prediction, validSet, options)
 		buf = 'Epoch:%d, Train_cost:%f, Validation_AUC:%f' % (epoch, trainCost, validAuc)
-		print buf
+		print(buf)
 		print2file(buf, logFile)
 		if validAuc > bestValidAuc: 
 			bestValidAuc = validAuc
 			bestValidEpoch = epoch
 			bestTestAuc = calculate_auc(get_prediction, testSet, options)
 			buf = 'Currently the best validation AUC found. Test AUC:%f at epoch:%d' % (bestTestAuc, epoch)
-			print buf
+			print(buf)
 			print2file(buf, logFile)
 			tempParams = unzip(tparams)
 			np.savez_compressed(outFile + '.' + str(epoch), **tempParams)
 	buf = 'The best validation & test AUC:%f, %f at epoch:%d' % (bestValidAuc, bestTestAuc, bestValidEpoch)
-	print buf
+	print(buf)
 	print2file(buf, logFile)
 	
 def parse_arguments(parser):
