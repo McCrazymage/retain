@@ -5,7 +5,7 @@
 
 import sys, random
 import numpy as np
-import cPickle as pickle
+import pickle as pickle
 from collections import OrderedDict
 import argparse
 
@@ -26,14 +26,14 @@ def load_embedding(infile):
 def load_params(options):
 	params = OrderedDict()
 	weights = np.load(options['modelFile'])
-	for k,v in weights.iteritems():
+	for k,v in weights.items():
 		params[k] = v
 	if len(options['embFile']) > 0: params['W_emb'] = np.array(pickle.load(open(options['embFile'], 'rb'))).astype(config.floatX)
 	return params
 
 def init_tparams(params, options):
 	tparams = OrderedDict()
-	for key, value in params.iteritems():
+	for key, value in params.items():
 		tparams[key] = theano.shared(value, name=key)
 	return tparams
 
@@ -138,7 +138,7 @@ def load_data_debug(seqFile, labelFile, timeFile=''):
 		valid_set_t = times[valid_indices]
 
 	def len_argsort(seq):
-		return sorted(range(len(seq)), key=lambda x: len(seq[x]))
+		return sorted(list(range(len(seq))), key=lambda x: len(seq[x]))
 
 	train_sorted_index = len_argsort(train_set_x)
 	train_set_x = [train_set_x[i] for i in train_sorted_index]
@@ -171,7 +171,7 @@ def load_data(dataFile, labelFile, timeFile):
 		test_set_t = np.array(pickle.load(open(timeFile, 'rb')))
 
 	def len_argsort(seq):
-		return sorted(range(len(seq)), key=lambda x: len(seq[x]))
+		return sorted(list(range(len(seq))), key=lambda x: len(seq[x]))
 
 	sorted_index = len_argsort(test_set_x)
 	test_set_x = [test_set_x[i] for i in sorted_index]
@@ -209,7 +209,7 @@ def train_RETAIN(
 	else: useFixedEmb = False
 	options['useFixedEmb'] = useFixedEmb
 	
-	print 'Loading the parameters ... ',
+	print('Loading the parameters ... ', end=' ')
 	params = load_params(options)
 	tparams = init_tparams(params, options)
 
@@ -217,22 +217,22 @@ def train_RETAIN(
 	options['betaHiddenDimSize'] = params['W_beta'].shape[0]
 	options['inputDimSize'] = params['W_emb'].shape[0]
 
-	print 'Building the model ... ',
+	print('Building the model ... ', end=' ')
 	x, alpha, beta =  build_model(tparams, options)
 	get_result = theano.function(inputs=[x], outputs=[alpha, beta], name='get_result')
 
-	print 'Loading data ... ',
+	print('Loading data ... ', end=' ')
 	testSet = load_data(seqFile, labelFile, timeFile)
-	print 'done'
+	print('done')
 
 	types = pickle.load(open(typeFile, 'rb'))
-	rtypes = dict([(v,k) for k,v in types.iteritems()])
+	rtypes = dict([(v,k) for k,v in types.items()])
 
-	print 'Contribution calculation start!!'
+	print('Contribution calculation start!!')
 	count = 0
 	outfd = open(outFile, 'w')
 	for index in range(len(testSet[0])):
-		if count % 100 == 0: print 'processed %d patients' % count
+		if count % 100 == 0: print('processed %d patients' % count)
 		count += 1
 		batchX = [testSet[0][index]]
 		label = testSet[1][index]
